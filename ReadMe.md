@@ -1,4 +1,4 @@
-﻿# Tokenizer
+﻿# Tokenizer (VB.NET)
 
 The Tokenizer is a versatile text processing library written in Visual Basic (VB.NET). It provides functionalities for tokenizing text into words, sentences, characters, and n-grams. The library is designed to be flexible, customizable, and easy to integrate into your VB.NET projects.
 
