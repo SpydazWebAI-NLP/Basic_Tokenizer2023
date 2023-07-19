@@ -64,9 +64,9 @@ Namespace My
     Friend Module MySettingsProperty
         
         <Global.System.ComponentModel.Design.HelpKeywordAttribute("My.Settings")>  _
-        Friend ReadOnly Property Settings() As Global.SpydazWebAI_BasicTokenizer.My.MySettings
+        Friend ReadOnly Property Settings() As Global.SpydazWebAI.BasicTokenizer.My.MySettings
             Get
-                Return Global.SpydazWebAI_BasicTokenizer.My.MySettings.Default
+                Return Global.SpydazWebAI.BasicTokenizer.My.MySettings.Default
             End Get
         End Property
     End Module

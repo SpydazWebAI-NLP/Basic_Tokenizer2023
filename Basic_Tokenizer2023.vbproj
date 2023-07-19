@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <StartupObject>
     </StartupObject>
-    <RootNamespace>SpydazWebAI_BasicTokenizer</RootNamespace>
+    <RootNamespace>SpydazWebAI.BasicTokenizer</RootNamespace>
     <AssemblyName>SpydazWebAI.BasicTokenizer</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Windows</MyType>
