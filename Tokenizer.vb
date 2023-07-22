@@ -57,6 +57,66 @@ Namespace Basic_NLP
         End Function
     End Module
     Public Class Tokenizer
+        Public Class iTokenizeNgrams
+            Public Shared Function TokenizeTextIntoCharacterNGrams(text As String, n As Integer) As List(Of String)
+                Dim tokens As New List(Of String)()
+
+                ' Remove whitespace and convert to lowercase
+                Dim cleanText As String = text.ToLower().Replace(" ", "")
+
+                ' Generate character n-grams
+                For i As Integer = 0 To cleanText.Length - n
+                    Dim ngram As String = cleanText.Substring(i, n)
+                    tokens.Add(ngram)
+                Next
+
+                Return tokens
+            End Function
+            Public Shared Function TokenizeTextIntoWordNGrams(ByRef text As String, n As Integer) As List(Of String)
+                Dim tokens As New List(Of String)()
+
+                ' Remove punctuation and convert to lowercase
+                Dim cleanText As String = text.ToLower.Trim
+                ' Split the clean text into individual words
+                Dim words() As String = cleanText.Split({" ", ".", ",", ";", ":", "!", "?"}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate n-grams from the words
+                For i As Integer = 0 To words.Length - n
+                    Dim ngram As String = String.Join(" ", words.Skip(i).Take(n))
+                    tokens.Add(ngram)
+                Next
+
+                Return tokens
+            End Function
+            Public Shared Function TokenizeTextIntoParagraphNGrams(text As String, n As Integer) As List(Of String)
+                Dim tokens As New List(Of String)()
+
+                ' Split the text into paragraphs
+                Dim paragraphs() As String = text.Split({Environment.NewLine & Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate paragraph n-grams
+                For i As Integer = 0 To paragraphs.Length - n
+                    Dim ngram As String = String.Join(Environment.NewLine & Environment.NewLine, paragraphs.Skip(i).Take(n))
+                    tokens.Add(ngram)
+                Next
+
+                Return tokens
+            End Function
+            Public Shared Function TokenizeTextIntoSentenceNGrams(text As String, n As Integer) As List(Of String)
+                Dim tokens As New List(Of String)()
+
+                ' Split the text into sentences
+                Dim sentences() As String = text.Split({".", "!", "?"}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate sentence n-grams
+                For i As Integer = 0 To sentences.Length - n
+                    Dim ngram As String = String.Join(" ", sentences.Skip(i).Take(n))
+                    tokens.Add(ngram)
+                Next
+
+                Return tokens
+            End Function
+        End Class
         Public Shared ReadOnly CodePunctuation() As String = {"\", "#", "@", "^"}
 
         Public Shared Delimiters() As Char = {CType(" ", Char), CType(".", Char),
