@@ -90,6 +90,7 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
+    <Compile Include="Sub_Word_Tokenizer.vb" />
     <Compile Include="Tokenizer.vb" />
   </ItemGroup>
   <ItemGroup>

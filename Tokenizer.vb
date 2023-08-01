@@ -123,14 +123,10 @@ Namespace Basic_NLP
                     CType(",", Char), CType("?", Char),
                     CType("!", Char), CType(";", Char),
                     CType(":", Char), Chr(10), Chr(13), vbTab}
-
         Public NGramSize As Integer = 2
 
         Public TokenToId As New Dictionary(Of String, Integer)
 
-        Public wordgramCounts As New Dictionary(Of List(Of String), Integer)
-
-        Public wordgramProbabilities As New Dictionary(Of List(Of String), Double)
 
         Private Shared ReadOnly AlphaBet() As String = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
     "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
@@ -178,12 +174,10 @@ Namespace Basic_NLP
             Me.TokenToId = Model.TokenToId
             Me.vocab = Model.vocab
             Me.iStopWords = Model.iStopWords
-            Me.NGramSize = Model.NGramSize
+
             Me.StopWords = Model.StopWords
             Me.ModelType = Model.ModelType
             Me.StopWordRemovalEnabled = Model.StopWordRemovalEnabled
-            Me.wordgramCounts = Model.wordgramCounts
-            Me.wordgramProbabilities = Model.wordgramProbabilities
         End Sub
 
         Public Sub New(ByRef Modeltype As TokenizerType)
@@ -1277,35 +1271,6 @@ Namespace Basic_NLP
             Return Me
         End Function
 
-        Public Function GenerateSentence() As String
-            On Error Resume Next
-            Dim sentence As New List(Of String)
-            Dim random As New Random()
-
-            ' Start the sentence with a random wordgram
-            Dim randomIndex As Integer = random.Next(0, wordgramCounts.Count)
-            Dim currentWordgram As List(Of String) = wordgramCounts.Keys(randomIndex)
-            sentence.AddRange(currentWordgram)
-
-            ' Generate subsequent words based on wordgram probabilities
-            While wordgramCounts.ContainsKey(currentWordgram)
-                Dim nextWord As String = GenerateNextWord(currentWordgram)
-                If nextWord = "" Then
-                    Exit While
-                End If
-                sentence.Add(nextWord)
-
-                ' Backoff to lower-order wordgrams if necessary
-                If currentWordgram.Count > 1 Then
-                    currentWordgram.RemoveAt(0)
-                Else
-                    Exit While
-                End If
-                currentWordgram.Add(nextWord)
-            End While
-
-            Return String.Join(" ", sentence)
-        End Function
 
         Public Function Lookup(token As String) As (Freq As Integer, ID As List(Of Integer), Subwords As List(Of String))
 
@@ -1644,39 +1609,9 @@ Namespace Basic_NLP
             Next
 
             TrainVocabulary(VocabularyWithFrequency)
-            TrainWordGrams(Vocabulary)
-        End Sub
-
-        Public Sub TrainWordGrams(trainingData As List(Of String))
-            On Error Resume Next
-            ' Preprocess training data and tokenize into wordgrams
-            Dim wordgrams As New List(Of List(Of String))
-            For Each sentence As String In trainingData
-                Dim tokens() = Tokenize(sentence).ToArray
-                For i As Integer = 0 To tokens.Length - 1
-                    Dim wordgram As List(Of String) = tokens.Skip(i).Take(1)
-                    wordgrams.Add(wordgram)
-                Next
-            Next
-
-            ' Count wordgrams
-            For Each wordgram As List(Of String) In wordgrams
-                If wordgramCounts.ContainsKey(wordgram) Then
-                    wordgramCounts(wordgram) += 1
-                Else
-                    wordgramCounts.Add(wordgram, 1)
-                End If
-            Next
-
-            ' Calculate wordgram probabilities
-            Dim totalCount As Integer = wordgramCounts.Values.Sum()
-            For Each wordgram As List(Of String) In wordgramCounts.Keys
-                Dim count As Integer = wordgramCounts(wordgram)
-                Dim probability As Double = count / totalCount
-                wordgramProbabilities.Add(wordgram, probability)
-            Next
 
         End Sub
+
 
         Private Shared Function AddSuffix(ByRef Str As String, ByVal Suffix As String) As String
             Return Str & Suffix
@@ -1996,35 +1931,6 @@ Namespace Basic_NLP
             Return tokens
         End Function
 
-        Private Function GenerateNextWord(wordgram As List(Of String)) As String
-            Dim random As New Random()
-            Dim candidates As New List(Of String)
-            Dim probabilities As New List(Of Double)
-
-            ' Collect candidate words and their probabilities
-            For Each candidateWordgram As List(Of String) In wordgramCounts.Keys
-                If candidateWordgram.GetRange(0, NGramSize - 1).SequenceEqual(wordgram) Then
-                    Dim candidateWord As String = candidateWordgram.Last()
-                    Dim probability As Double = wordgramProbabilities(candidateWordgram)
-                    candidates.Add(candidateWord)
-                    probabilities.Add(probability)
-                End If
-            Next
-
-            ' Randomly select a candidate word based on probabilities
-            Dim totalProbability As Double = probabilities.Sum()
-            Dim randomValue As Double = random.NextDouble() * totalProbability
-            Dim cumulativeProbability As Double = 0
-
-            For i As Integer = 0 To candidates.Count - 1
-                cumulativeProbability += probabilities(i)
-                If randomValue <= cumulativeProbability Then
-                    Return candidates(i)
-                End If
-            Next
-
-            Return ""
-        End Function
 
         Private Function GetModelType(ByVal tokenValue As String) As String
             Select Case ModelType
@@ -2119,7 +2025,7 @@ Namespace Basic_NLP
         End Function
 
         Private Function ReplaceMergedPair(tokens As List(Of String), newUnit As String) As List(Of String)
-            Dim mergedTokens As List(Of String) = New List(Of String)()
+            Dim mergedTokens As List(Of String) = New List(Of String)
 
             For Each token As String In tokens
                 Dim replacedToken As String = token.Replace(newUnit, " " & newUnit & " ")
