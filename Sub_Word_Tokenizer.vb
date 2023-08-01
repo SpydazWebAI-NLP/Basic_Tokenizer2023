@@ -157,18 +157,6 @@ Namespace BPE_Tokenizer
             Return iTokenizer.Tokenize(Document)
         End Function
 
-        ''' <summary>
-        ''' Trains the vocabulary for the tokenizer
-        ''' </summary>
-        ''' <param name="Corpus"></param>
-        ''' <param name="Vocabulary"></param>
-        ''' <param name="Threshold"></param>
-        ''' <returns></returns>
-        Public Function TrainVocabulary(ByRef Corpus As List(Of List(Of String)), ByRef Vocabulary As Dictionary(Of String, Integer), ByRef Threshold As Integer) As Dictionary(Of String, Integer)
-            Dim trainer As New iTrain(Vocabulary)
-
-            Return trainer.Train(Corpus)
-        End Function
 
         Private Class iTokenize
 
@@ -217,6 +205,28 @@ Namespace BPE_Tokenizer
 
                 End Select
 
+            End Function
+
+            ''' <summary>
+            ''' Pure basic Tokenizer to Tokens
+            ''' </summary>
+            Public Shared Function TokenizeWithPositions(ByRef Doc As String, tokenizationOption As Type) As List(Of PositionalTokenizer.Token)
+                Dim ivocabulary As New List(Of PositionalTokenizer.Token)
+
+
+                Select Case tokenizationOption
+                    Case Type._Char
+                        ivocabulary.AddRange(PositionalTokenizer.TokenizeByCharacter(Doc.ToLower))
+                    Case Type._Word
+                        ivocabulary.AddRange(PositionalTokenizer.TokenizeByWord(Doc.ToLower))
+                    Case Type._Sentence
+                        ivocabulary.AddRange(PositionalTokenizer.TokenizeBySentence(Doc.ToLower))
+
+
+                End Select
+
+
+                Return ivocabulary
             End Function
 
             ''' <summary>
@@ -292,7 +302,185 @@ Namespace BPE_Tokenizer
 
                 Return subwords
             End Function
+            Public Class PositionalTokenizer
+                Public Structure Token
+                    ''' <summary>
+                    ''' Initializes a new instance of the Token structure.
+                    ''' </summary>
+                    ''' <param name="type">The type of the token.</param>
+                    ''' <param name="value">The string value of the token.</param>
+                    Public Sub New(ByVal type As String, ByVal value As String)
+                        Me.Type = type
+                        Me.Value = value
+                    End Sub
 
+                    Public Sub New(ByVal type As TokenType, ByVal value As String, ByVal startPosition As Integer, ByVal endPosition As Integer)
+                        Me.Type = type
+                        Me.Value = value
+                        Me.StartPosition = startPosition
+                        Me.EndPosition = endPosition
+                    End Sub
+
+                    Public Property EndPosition As Integer
+                    Public Property StartPosition As Integer
+                    Public Property Type As TokenType
+                    Public Property Value As String
+                End Structure
+
+                ''' <summary>
+                ''' Returns Tokens With Positions
+                ''' </summary>
+                ''' <param name="input"></param>
+                ''' <returns></returns>
+                Public Shared Function TokenizeByCharacter(ByVal input As String) As List(Of Token)
+                    Dim characters As Char() = input.ToCharArray()
+                    Dim tokens As New List(Of Token)
+                    Dim currentPosition As Integer = 0
+
+                    For Each character As Char In characters
+                        Dim startPosition As Integer = currentPosition
+                        Dim endPosition As Integer = currentPosition
+                        Dim token As New Token(TokenType.Character, character.ToString(), startPosition, endPosition)
+                        tokens.Add(token)
+                        currentPosition += 1
+                    Next
+
+                    Return tokens
+                End Function
+
+                ''' <summary>
+                ''' Returns Tokens With Positions
+                ''' </summary>
+                ''' <param name="input"></param>
+                ''' <returns></returns>
+                Public Shared Function TokenizeBySentence(ByVal input As String) As List(Of Token)
+                    Dim sentences As String() = input.Split("."c)
+                    Dim tokens As New List(Of Token)
+                    Dim currentPosition As Integer = 0
+
+                    For Each sentence As String In sentences
+                        Dim startPosition As Integer = currentPosition
+                        Dim endPosition As Integer = currentPosition + sentence.Length - 1
+                        Dim token As New Token(TokenType.Sentence, sentence, startPosition, endPosition)
+                        tokens.Add(token)
+                        currentPosition = endPosition + 2 ' Account for the period and the space after the sentence
+                    Next
+
+                    Return tokens
+                End Function
+
+                ''' <summary>
+                ''' Returns Tokens With Positions
+                ''' </summary>
+                ''' <param name="input"></param>
+                ''' <returns></returns>
+                Public Shared Function TokenizeByWord(ByVal input As String) As List(Of Token)
+                    Dim words As String() = input.Split(" "c)
+                    Dim tokens As New List(Of Token)
+                    Dim currentPosition As Integer = 0
+
+                    For Each word As String In words
+                        Dim startPosition As Integer = currentPosition
+                        Dim endPosition As Integer = currentPosition + word.Length - 1
+                        Dim token As New Token(TokenType.Word, word, startPosition, endPosition)
+                        tokens.Add(token)
+                        currentPosition = endPosition + 2 ' Account for the space between words
+                    Next
+
+                    Return tokens
+                End Function
+
+                ''' <summary>
+                ''' Pure basic Tokenizer to Tokens
+                ''' </summary>
+                ''' <param name="Corpus"></param>
+                ''' <param name="tokenizationOption">Type Of Tokenization</param>
+                ''' <returns></returns>
+                Public Shared Function TokenizeInput(ByRef Corpus As List(Of String), tokenizationOption As Type) As List(Of Token)
+                    Dim ivocabulary As New List(Of Token)
+
+                    For Each Doc In Corpus
+                        Select Case tokenizationOption
+                            Case Type._Char
+                                ivocabulary.AddRange(TokenizeByCharacter(Doc.ToLower))
+                            Case Type._Word
+                                ivocabulary.AddRange(TokenizeByWord(Doc.ToLower))
+                            Case Type._Sentence
+                                ivocabulary.AddRange(TokenizeBySentence(Doc.ToLower))
+
+
+                        End Select
+                    Next
+
+                    Return ivocabulary
+                End Function
+
+            End Class
+            Public Class TokenToTokenID
+                Public TokenToId As New Dictionary(Of String, Integer)
+                Private idToToken As New Dictionary(Of Integer, String)
+                Private nextId As Integer = 0
+
+                Private vocab As New Dictionary(Of String, Integer)
+                Public Sub New(ByRef Vocabulary As Dictionary(Of String, Integer))
+                    vocab = Vocabulary
+                    TokenToId = New Dictionary(Of String, Integer)
+                    idToToken = New Dictionary(Of Integer, String)
+                End Sub
+
+                ''' <summary>
+                ''' Pure Tokenizer (will tokenize based on the Tokenizer model settings)
+                ''' </summary>
+                ''' <param name="text"></param>
+                ''' <returns></returns>
+                Public Function TokenizeToTokenIDs(text As String) As List(Of Integer)
+                    Dim tokens = PositionalTokenizer.TokenizeByWord(text)
+                    Dim tokenIds As New List(Of Integer)
+
+                    For Each itoken In tokens
+                        Dim tokenId As Integer
+                        If TokenToId.ContainsKey(itoken.Value) Then
+                            tokenId = TokenToId(itoken.Value)
+                        Else
+                            'Not registered
+
+                            tokenId = TokenToId(itoken.Value)
+
+                        End If
+                        tokenIds.Add(tokenId)
+
+                    Next
+
+                    Return tokenIds
+                End Function
+
+                Private Sub AddTokenID(text As String)
+
+                    If Not vocab.ContainsKey(text) Then
+                        vocab(text) = nextId
+                        nextId += 1
+                        TokenToId = vocab.ToDictionary(Function(x) x.Key, Function(x) x.Value)
+                        idToToken = TokenToId.ToDictionary(Function(x) x.Value, Function(x) x.Key)
+                    End If
+
+
+                End Sub
+
+                ''' <summary>
+                ''' Given  a Set of Token ID Decode the Tokens 
+                ''' </summary>
+                ''' <param name="tokenIds"></param>
+                ''' <returns></returns>
+                Public Function Detokenize(tokenIds As List(Of Integer)) As String
+                    Dim tokens As New List(Of String)
+
+                    For Each tokenId As Integer In tokenIds
+                        tokens.Add(idToToken(tokenId))
+                    Next
+
+                    Return String.Join(" ", tokens)
+                End Function
+            End Class
             Public Class BasicTokenizer
 
                 Public Shared Function TokenizeToCharacter(Document As String) As List(Of String)
@@ -323,8 +511,25 @@ Namespace BPE_Tokenizer
                 End Function
 
             End Class
-
             Private Class TokenizeToNgrams
+                Public Shared Function CreateNgrams(ByVal input As String, ByVal n As Integer) As List(Of PositionalTokenizer.Token)
+
+                    Dim tokens As New List(Of PositionalTokenizer.Token)
+                    Dim words As String() = input.Split(" "c)
+
+                    For i As Integer = 0 To words.Length - n
+                        Dim ngramValue As String = String.Join(" ", words.Skip(i).Take(n))
+                        Dim startPosition As Integer = words.Take(i).Sum(Function(w) w.Length) + i * 2 ' Account for the spaces between words
+                        Dim endPosition As Integer = startPosition + ngramValue.Length - 1
+                        Dim token As New PositionalTokenizer.Token(RemoveToken.GetTokenType(ngramValue), ngramValue, startPosition, endPosition)
+                        tokens.Add(token)
+                    Next
+                    For Each item In tokens
+
+
+                    Next
+                    Return tokens
+                End Function
 
                 Public Shared Function TokenizetoCharacter(Document As String, n As Integer) As List(Of String)
                     TokenizetoCharacter = New List(Of String)
@@ -386,7 +591,6 @@ Namespace BPE_Tokenizer
                 End Function
 
             End Class
-
             Public Class TokenizeToSubWords
 
                 Public Shared Function TokenizeToWord(ByRef Document As String, ByRef Vocabulary As Dictionary(Of String, Integer)) As List(Of String)
@@ -517,7 +721,7 @@ Namespace BPE_Tokenizer
 
         End Class
 
-        Public Function ReadTextFilesFromDirectory(directoryPath As String) As List(Of String)
+        Public Shared Function ReadTextFilesFromDirectory(directoryPath As String) As List(Of String)
             Dim fileList As New List(Of String)()
 
             Try
@@ -629,6 +833,18 @@ Namespace BPE_Tokenizer
 
                 End While
                 Return Vocabulary
+            End Function
+            ''' <summary>
+            ''' Trains the vocabulary for the tokenizer
+            ''' </summary>
+            ''' <param name="Corpus"></param>
+            ''' <param name="Vocabulary"></param>
+            ''' <param name="Threshold"></param>
+            ''' <returns></returns>
+            Public Function TrainVocabulary(ByRef Corpus As List(Of List(Of String)), ByRef Vocabulary As Dictionary(Of String, Integer), ByRef Threshold As Integer) As Dictionary(Of String, Integer)
+                Dim trainer As New iTrain(Vocabulary)
+
+                Return trainer.Train(Corpus)
             End Function
 
             Public Shared Function GetList(ByRef Vocabulary As Dictionary(Of String, Integer)) As List(Of String)
@@ -1463,10 +1679,210 @@ Namespace BPE_Tokenizer
             End Function
 
         End Class
+        Public Class Word2WordMatrix
+            Private matrix As Dictionary(Of String, Dictionary(Of String, Integer))
+
+            Public Sub New()
+                matrix = New Dictionary(Of String, Dictionary(Of String, Integer))
+            End Sub
+            Public Shared Function CreateDataGridView(matrix As Dictionary(Of String, Dictionary(Of String, Double))) As DataGridView
+                Dim dataGridView As New DataGridView()
+                dataGridView.Dock = DockStyle.Fill
+                dataGridView.AutoGenerateColumns = False
+                dataGridView.AllowUserToAddRows = False
+
+                ' Add columns to the DataGridView
+                Dim wordColumn As New DataGridViewTextBoxColumn()
+                wordColumn.HeaderText = "Word"
+                wordColumn.DataPropertyName = "Word"
+                dataGridView.Columns.Add(wordColumn)
+
+                For Each contextWord As String In matrix.Keys
+                    Dim contextColumn As New DataGridViewTextBoxColumn()
+                    contextColumn.HeaderText = contextWord
+                    contextColumn.DataPropertyName = contextWord
+                    dataGridView.Columns.Add(contextColumn)
+                Next
+
+                ' Populate the DataGridView with the matrix data
+                For Each word As String In matrix.Keys
+                    Dim rowValues As New List(Of Object)
+                    rowValues.Add(word)
+
+                    For Each contextWord As String In matrix.Keys
+                        Dim count As Object = If(matrix(word).ContainsKey(contextWord), matrix(word)(contextWord), 0)
+                        rowValues.Add(count)
+                    Next
+
+                    dataGridView.Rows.Add(rowValues.ToArray())
+                Next
+
+                Return dataGridView
+            End Function
+            Public Function iCoOccurrenceMatrix(text As String, entityList As List(Of String), windowSize As Integer) As Dictionary(Of String, Dictionary(Of String, Integer))
+                Dim CoOccurrenceMatrix As New Dictionary(Of String, Dictionary(Of String, Integer))
+
+                Dim words() As String = text.Split(" "c)
+                For i As Integer = 0 To words.Length - 1
+                    If entityList.Contains(words(i).ToLower()) Then
+                        Dim entity As String = words(i)
+                        If Not CoOccurrenceMatrix.ContainsKey(entity) Then
+                            CoOccurrenceMatrix(entity) = New Dictionary(Of String, Integer)()
+                        End If
+
+                        For j As Integer = i - windowSize To i + windowSize
+                            If j >= 0 AndAlso j < words.Length AndAlso i <> j AndAlso entityList.Contains(words(j).ToLower()) Then
+                                Dim coOccurringEntity As String = words(j)
+                                If Not CoOccurrenceMatrix(entity).ContainsKey(coOccurringEntity) Then
+                                    CoOccurrenceMatrix(entity)(coOccurringEntity) = 0
+                                End If
+
+                                CoOccurrenceMatrix(entity)(coOccurringEntity) += 1
+                            End If
+                        Next
+                    End If
+                Next
+
+                Return CoOccurrenceMatrix
+            End Function
+
+            Public Shared Function CreateDataGridView(matrix As Dictionary(Of String, Dictionary(Of String, Integer))) As DataGridView
+                Dim dataGridView As New DataGridView()
+                dataGridView.Dock = DockStyle.Fill
+                dataGridView.AutoGenerateColumns = False
+                dataGridView.AllowUserToAddRows = False
+
+                ' Add columns to the DataGridView
+                Dim wordColumn As New DataGridViewTextBoxColumn()
+                wordColumn.HeaderText = "Word"
+                wordColumn.DataPropertyName = "Word"
+                dataGridView.Columns.Add(wordColumn)
+
+                For Each contextWord As String In matrix.Keys
+                    Dim contextColumn As New DataGridViewTextBoxColumn()
+                    contextColumn.HeaderText = contextWord
+                    contextColumn.DataPropertyName = contextWord
+                    dataGridView.Columns.Add(contextColumn)
+                Next
+
+                ' Populate the DataGridView with the matrix data
+                For Each word As String In matrix.Keys
+                    Dim rowValues As New List(Of Object)()
+                    rowValues.Add(word)
+
+                    For Each contextWord As String In matrix.Keys
+                        Dim count As Integer = If(matrix(word).ContainsKey(contextWord), matrix(word)(contextWord), 0)
+                        rowValues.Add(count)
+                    Next
+
+                    dataGridView.Rows.Add(rowValues.ToArray())
+                Next
+
+                Return dataGridView
+            End Function
+
+            Public Sub AddDocument(document As String, contextWindow As Integer)
+                Dim words As String() = document.Split({" "c}, StringSplitOptions.RemoveEmptyEntries)
+
+                For i As Integer = 0 To words.Length - 1
+                    Dim currentWord As String = words(i)
+
+                    If Not matrix.ContainsKey(currentWord) Then
+                        matrix(currentWord) = New Dictionary(Of String, Integer)()
+                    End If
+
+                    For j As Integer = Math.Max(0, i - contextWindow) To Math.Min(words.Length - 1, i + contextWindow)
+                        If i <> j Then
+                            Dim contextWord As String = words(j)
+
+                            If Not matrix(currentWord).ContainsKey(contextWord) Then
+                                matrix(currentWord)(contextWord) = 0
+                            End If
+
+                            matrix(currentWord)(contextWord) += 1
+                        End If
+                    Next
+                Next
+            End Sub
+            Public Shared Sub Main()
+                ' Fill the matrix with your data
+                Dim documents As List(Of String) = New List(Of String)()
+                documents.Add("This is the first document.")
+                documents.Add("The second document is here.")
+                documents.Add("And this is the third document.")
+
+                Dim contextWindow As Integer = 1
+                Dim matrixBuilder As New Word2WordMatrix()
+
+                For Each document As String In documents
+                    matrixBuilder.AddDocument(document, contextWindow)
+                Next
+
+                Dim wordWordMatrix As Dictionary(Of String, Dictionary(Of String, Integer)) = matrixBuilder.GetWordWordMatrix()
+
+                ' Create the DataGridView control
+                Dim dataGridView As DataGridView = Word2WordMatrix.CreateDataGridView(wordWordMatrix)
+
+                ' Create a form and add the DataGridView to it
+                Dim form As New Form()
+                form.Text = "Word-Word Matrix"
+                form.Size = New Size(800, 600)
+                form.Controls.Add(dataGridView)
+
+                ' Display the form
+                Application.Run(form)
+            End Sub
+            Public Function GetWordWordMatrix() As Dictionary(Of String, Dictionary(Of String, Integer))
+                Return matrix
+            End Function
+        End Class
+        Public Class WordListReader
+            Private wordList As List(Of String)
+
+            Public Sub New(filePath As String)
+                wordList = New List(Of String)()
+                ReadWordList(filePath)
+            End Sub
+
+            Private Sub ReadWordList(filePath As String)
+                Using reader As New StreamReader(filePath)
+                    While Not reader.EndOfStream
+                        Dim line As String = reader.ReadLine()
+                        If Not String.IsNullOrEmpty(line) Then
+                            wordList.Add(line.Trim.ToLower)
+                        End If
+                    End While
+                End Using
+            End Sub
+
+            Public Function GetWords() As List(Of String)
+                Return wordList
+            End Function
+            ' Usage Example:
+            Public Shared Sub Main()
+                ' Assuming you have a wordlist file named 'words.txt' in the same directory
+                Dim corpusRoot As String = "."
+                Dim wordlistPath As String = Path.Combine(corpusRoot, "wordlist.txt")
+
+                Dim wordlistReader As New WordListReader(wordlistPath)
+                Dim words As List(Of String) = wordlistReader.GetWords()
+
+                For Each word As String In words
+                    Console.WriteLine(word)
+                Next
+                Console.ReadLine()
+                ' Rest of your code...
+            End Sub
+
+
+        End Class
 
     End Class
     Module Ext
-
+        <Runtime.CompilerServices.Extension()>
+        Public Function AddSuffix(ByRef Str As String, ByVal Suffix As String) As String
+            Return Str & Suffix
+        End Function
         Public Function ReadTextFilesFromDirectory(directoryPath As String) As List(Of String)
             Dim fileList As New List(Of String)()
 
@@ -1489,7 +1905,6 @@ Namespace BPE_Tokenizer
         Public Function SpaceItems(ByRef txt As String, Item As String) As String
             Return txt.Replace(Item, " " & Item & " ")
         End Function
-
         Public Class PunctuationMarkers
             Public Shared ReadOnly SeperatorPunctuation() As String = {" ", ",", "|"}
             Public Shared ReadOnly Symbols() As String = {"@", "#", "$", "%", "&", "*", "+", "=", "^", "_", "~", "§", "°", "¿", "¡"}

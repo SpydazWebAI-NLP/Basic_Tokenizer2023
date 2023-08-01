@@ -65,7 +65,6 @@ Namespace Basic_NLP
                     CType(":", Char), Chr(10), Chr(13), vbTab}
         Public NGramSize As Integer = 2
 
-        Public TokenToId As New Dictionary(Of String, Integer)
 
 
         Private Shared ReadOnly AlphaBet() As String = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
@@ -94,25 +93,18 @@ Namespace Basic_NLP
 
         Private Shared Param_Freq As Integer = 4
 
-        Private idToToken As New Dictionary(Of Integer, String)
-
         Private iStopWords As New List(Of String)
 
         Private ModelType As TokenizerType
 
-        Private nextId As Integer = 0
 
-        Private vocab As New Dictionary(Of String, Integer)
 
         Private VocabularyWithFrequency As New Dictionary(Of String, Integer)
 
         Public Sub New(ByRef Model As Tokenizer)
 
             Me.VocabularyWithFrequency = Model.VocabularyWithFrequency
-            Me.nextId = Model.nextId
-            Me.idToToken = Model.idToToken
-            Me.TokenToId = Model.TokenToId
-            Me.vocab = Model.vocab
+
             Me.iStopWords = Model.iStopWords
 
             Me.StopWords = Model.StopWords
@@ -941,39 +933,12 @@ Namespace Basic_NLP
 
         End Function
 
-        ''' <summary>
-        ''' Given  a Set of Token ID Decode the Tokens 
-        ''' </summary>
-        ''' <param name="tokenIds"></param>
-        ''' <returns></returns>
-        Public Function Detokenize(tokenIds As List(Of Integer)) As String
-            Dim tokens As New List(Of String)
-
-            For Each tokenId As Integer In tokenIds
-                tokens.Add(idToToken(tokenId))
-            Next
-
-            Return String.Join(" ", tokens)
-        End Function
 
         Public Function ExportModel() As Tokenizer
             Return Me
         End Function
 
 
-        Public Function Lookup(token As String) As (Freq As Integer, ID As List(Of Integer), Subwords As List(Of String))
-
-            If VocabularyWithFrequency.ContainsKey(token) Then
-                Dim freq As Integer = VocabularyWithFrequency(token)
-                Dim id As List(Of Integer) = TokenizeToTokenIDs(token)
-
-
-                Dim subwords As List(Of String) = SplitIntoSubwords(token, NGramSize)
-                Return (freq, id, subwords)
-            Else
-                Return (0, New List(Of Integer), New List(Of String))
-            End If
-        End Function
 
         Public Function Tokenize(ByVal input As String, Optional N As Integer = 1) As List(Of Token)
             Dim normalizedInput As String = NormalizeInput(input)
@@ -1237,31 +1202,6 @@ Namespace Basic_NLP
             Return tokens
         End Function
 
-        ''' <summary>
-        ''' Pure Tokenizer (will tokenize based on the Tokenizer model settings)
-        ''' </summary>
-        ''' <param name="text"></param>
-        ''' <returns></returns>
-        Public Function TokenizeToTokenIDs(text As String) As List(Of Integer)
-            Dim tokens = Tokenize(text, 1)
-            Dim tokenIds As New List(Of Integer)
-
-            For Each token In tokens
-                Dim tokenId As Integer
-                If TokenToId.ContainsKey(token.Value) Then
-                    tokenId = TokenToId(token.Value)
-                Else
-                    'Not registered
-                    UpdateVocabulary(token.Value)
-                    tokenId = TokenToId(token.Value)
-
-                End If
-                tokenIds.Add(tokenId)
-
-            Next
-
-            Return tokenIds
-        End Function
 
         Public Sub Train(tokens As List(Of String), ByRef numMergeOperations As Integer)
 
@@ -1410,17 +1350,6 @@ Namespace Basic_NLP
             Return wordTokens
         End Function
 
-        Private Sub AddTokenID(text As String)
-
-            If Not vocab.ContainsKey(text) Then
-                vocab(text) = nextId
-                nextId += 1
-                TokenToId = vocab.ToDictionary(Function(x) x.Key, Function(x) x.Value)
-                idToToken = TokenToId.ToDictionary(Function(x) x.Value, Function(x) x.Key)
-            End If
-
-
-        End Sub
 
         Private Function ComputePairFrequencies() As Dictionary(Of String, Integer)
             Dim pairFrequencies As Dictionary(Of String, Integer) = New Dictionary(Of String, Integer)()
@@ -1591,7 +1520,7 @@ Namespace Basic_NLP
                 VocabularyWithFrequency.Remove(Item)
                 VocabularyWithFrequency.Add(Item, x)
             End If
-            AddTokenID(Item)
+
         End Sub
 
         ''' <summary>
