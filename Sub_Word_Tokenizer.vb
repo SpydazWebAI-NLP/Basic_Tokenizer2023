@@ -164,7 +164,7 @@ Namespace BPE_Tokenizer
         ''' <param name="Vocabulary"></param>
         ''' <param name="Threshold"></param>
         ''' <returns></returns>
-        Public Function TrainVocabulary(ByRef Corpus As List(Of String), ByRef Vocabulary As Dictionary(Of String, Integer), ByRef Threshold As Integer) As Dictionary(Of String, Integer)
+        Public Function TrainVocabulary(ByRef Corpus As List(Of List(Of String)), ByRef Vocabulary As Dictionary(Of String, Integer), ByRef Threshold As Integer) As Dictionary(Of String, Integer)
             Dim trainer As New iTrain(Vocabulary)
 
             Return trainer.Train(Corpus)
@@ -480,7 +480,12 @@ Namespace BPE_Tokenizer
                 Return NgramCounts
             End Function
 
-            Public Shared Function Train(ByRef Corpus As List(Of String), ByRef Vocabulary As Dictionary(Of String, Integer)) As Dictionary(Of String, Integer)
+            ''' <summary>
+            ''' Trains Internal Vocabulary
+            ''' </summary>
+            ''' <param name="Corpus"></param>
+            ''' <returns></returns>
+            Public Function Train(ByRef Corpus As List(Of List(Of String))) As Dictionary(Of String, Integer)
                 '3> Note Frequent n-grams can be of any size
                 '      (sentence word paragraph, even segments)
                 '4> Note when training with large corpuses the vocabulary will contain tokens of many sizes and elements,
@@ -488,92 +493,23 @@ Namespace BPE_Tokenizer
                 'later embedding models.
                 Dim tokens As New List(Of String)
                 Dim iTokenizer As New iTokenize(Vocabulary)
-                For Each item In Corpus
-                    tokens = iTokenizer.Tokenize(item)
-                    ' Output the tokenized document
-                    For Each itemToken As String In tokens
-                        Console.Write(itemToken & " ")
-                    Next
-                Next
-
-                'Trained
-                Return Vocabulary
-            End Function
-
-            Public Function Train(ByRef Corpus As List(Of String)) As Dictionary(Of String, Integer)
-                '3> Note Frequent n-grams can be of any size
-                '      (sentence word paragraph, even segments)
-                '4> Note when training with large corpuses the vocabulary will contain tokens of many sizes and elements,
-                'Vocabulary created from training will contain the tokeniDs used for
-                'later embedding models.
-                Dim tokens As New List(Of String)
-                Dim iTokenizer As New iTokenize(Vocabulary)
-                For Each item In Corpus
-                    tokens = iTokenizer.Tokenize(item)
-                    ' Output the tokenized document
-                    For Each itemToken As String In tokens
-                        Console.Write(itemToken & " ")
-                    Next
-                Next
-
-                'Trained
-                Return Vocabulary
-            End Function
-
-            Public Shared Function Train_BPE_Vocabulary(corpus As List(Of List(Of String)), ByRef Vocabulary As Dictionary(Of String, Integer), MaxMergeOperations As Integer)
-                ' Initialize the vocabulary with word-level subword units
-                For Each sentence In corpus
-                    For Each word In sentence
-                        If Vocabulary.ContainsKey(word) Then
-                            Vocabulary(word) += 1
-                        Else
-                            Vocabulary.Add(word, 1)
-                        End If
-                    Next
-                Next
-
-                Dim mergeOperationsCount As Integer = 0
-
-                While mergeOperationsCount < MaxMergeOperations
-                    ' Compute the frequency of subword units in the vocabulary
-                    Dim subwordFrequencies As New Dictionary(Of String, Integer)
-
-                    For Each subword In Vocabulary.Keys
-                        Dim subwordUnits = subword.Split(" ")
-                        For Each unit In subwordUnits
-                            If subwordFrequencies.ContainsKey(unit) Then
-                                subwordFrequencies(unit) += Vocabulary(subword)
-                            Else
-                                subwordFrequencies.Add(unit, Vocabulary(subword))
-                            End If
+                Vocabulary = VocabularyHandler.Train_BPE_Vocabulary(Corpus, Vocabulary, 5)
+                For Each document In Corpus
+                    Console.WriteLine("Document " & vbNewLine)
+                    For Each item In document
+                        tokens = iTokenizer.Tokenize(item)
+                        ' Output the tokenized document
+                        For Each itemToken As String In tokens
+                            Console.Write(itemToken & " ")
                         Next
                     Next
+                Next
 
-                    ' Find the most frequent pair of subword units
-                    Dim mostFrequentPair As KeyValuePair(Of String, Integer) = subwordFrequencies.OrderByDescending(Function(pair) pair.Value).FirstOrDefault()
 
-                    If mostFrequentPair.Value < 2 Then
-                        ' Stop merging if the frequency of the most frequent pair is less than 2
-                        Exit While
-                    End If
-
-                    ' Merge the most frequent pair into a new subword unit
-                    Dim newSubwordUnit = mostFrequentPair.Key.Replace(" ", "")
-
-                    ' Update the vocabulary by replacing occurrences of the merged subword pair with the new subword unit
-                    Dim updatedVocabulary As New Dictionary(Of String, Integer)
-
-                    For Each subword In Vocabulary.Keys
-                        Dim mergedSubword = subword.Replace(mostFrequentPair.Key, newSubwordUnit)
-                        updatedVocabulary(mergedSubword) = Vocabulary(subword)
-                    Next
-
-                    Vocabulary = updatedVocabulary
-                    mergeOperationsCount += 1
-
-                End While
+                'Trained
                 Return Vocabulary
             End Function
+
 
             Public Function GetVocabulary() As List(Of String)
                 Return Vocabulary.Keys.ToList()
@@ -639,46 +575,102 @@ Namespace BPE_Tokenizer
 
         End Class
 
-        Public Function GetList(ByRef Vocabulary As Dictionary(Of String, Integer)) As List(Of String)
-            GetList = New List(Of String)
-            For Each item In Vocabulary
-                GetList.Add(item.Key)
-            Next
-        End Function
+        Public Class VocabularyHandler
+            Public Shared Function Train_BPE_Vocabulary(corpus As List(Of List(Of String)), ByRef Vocabulary As Dictionary(Of String, Integer), MaxMergeOperations As Integer)
+                ' Initialize the vocabulary with word-level subword units
+                For Each sentence In corpus
+                    For Each word In sentence
+                        If Vocabulary.ContainsKey(word) Then
+                            Vocabulary(word) += 1
+                        Else
+                            Vocabulary.Add(word, 1)
+                        End If
+                    Next
+                Next
 
-        Public Function GetVocab(ByRef Tokens As List(Of String)) As List(Of String)
-            Return Tokens.Distinct.ToList
-        End Function
+                Dim mergeOperationsCount As Integer = 0
 
-        Public Shared Function FindFrequentCharNgrams(Tokens As List(Of String), N As Integer, ByRef Freq_threshold As Integer) As List(Of String)
-            Dim NgramCounts As New Dictionary(Of String, Integer)
+                While mergeOperationsCount < MaxMergeOperations
+                    ' Compute the frequency of subword units in the vocabulary
+                    Dim subwordFrequencies As New Dictionary(Of String, Integer)
 
-            For Each word In Tokens
-                Dim characters As List(Of String) = iTokenize.Tokenize(word, Type._Char)
+                    For Each subword In Vocabulary.Keys
+                        Dim subwordUnits = subword.Split(" ")
+                        For Each unit In subwordUnits
+                            If subwordFrequencies.ContainsKey(unit) Then
+                                subwordFrequencies(unit) += Vocabulary(subword)
+                            Else
+                                subwordFrequencies.Add(unit, Vocabulary(subword))
+                            End If
+                        Next
+                    Next
 
-                For Each ngram In iTrain.GetNgramCounts(characters, N)
-                    'Update Dictionary
-                    If NgramCounts.ContainsKey(ngram.Key) Then
+                    ' Find the most frequent pair of subword units
+                    Dim mostFrequentPair As KeyValuePair(Of String, Integer) = subwordFrequencies.OrderByDescending(Function(pair) pair.Value).FirstOrDefault()
 
-                        NgramCounts(ngram.Key) += ngram.Value
-                    Else
-                        NgramCounts.Add(ngram.Key, ngram.Value)
+                    If mostFrequentPair.Value < 2 Then
+                        ' Stop merging if the frequency of the most frequent pair is less than 2
+                        Exit While
                     End If
 
+                    ' Merge the most frequent pair into a new subword unit
+                    Dim newSubwordUnit = mostFrequentPair.Key.Replace(" ", "")
+
+                    ' Update the vocabulary by replacing occurrences of the merged subword pair with the new subword unit
+                    Dim updatedVocabulary As New Dictionary(Of String, Integer)
+
+                    For Each subword In Vocabulary.Keys
+                        Dim mergedSubword = subword.Replace(mostFrequentPair.Key, newSubwordUnit)
+                        updatedVocabulary(mergedSubword) = Vocabulary(subword)
+                    Next
+
+                    Vocabulary = updatedVocabulary
+                    mergeOperationsCount += 1
+
+                End While
+                Return Vocabulary
+            End Function
+
+            Public Shared Function GetList(ByRef Vocabulary As Dictionary(Of String, Integer)) As List(Of String)
+                GetList = New List(Of String)
+                For Each item In Vocabulary
+                    GetList.Add(item.Key)
                 Next
-            Next
+            End Function
 
-            Return iTrain.GetHighFreq(NgramCounts, Freq_threshold)
-        End Function
+            Public Shared Function GetVocab(ByRef CBOW As List(Of String)) As List(Of String)
+                Return CBOW.Distinct.ToList
+            End Function
+        End Class
+        Public Class FrequentTerms
+            Public Shared Function FindFrequentCharNgrams(Tokens As List(Of String), N As Integer, ByRef Freq_threshold As Integer) As List(Of String)
+                Dim NgramCounts As New Dictionary(Of String, Integer)
 
-        Public Shared Function FindFrequentTokenNgrams(Tokens As List(Of String), N As Integer, ByRef Freq_threshold As Integer) As List(Of String)
-            Dim NgramCounts As Dictionary(Of String, Integer) = iTrain.GetNgramCounts(Tokens, N)
+                For Each word In Tokens
+                    Dim characters As List(Of String) = iTokenize.Tokenize(word, Type._Char)
 
-            Dim frequentWordNgrams As List(Of String) = iTrain.GetHighFreq(NgramCounts, Freq_threshold)
+                    For Each ngram In iTrain.GetNgramCounts(characters, N)
+                        'Update Dictionary
+                        If NgramCounts.ContainsKey(ngram.Key) Then
 
-            Return frequentWordNgrams
-        End Function
+                            NgramCounts(ngram.Key) += ngram.Value
+                        Else
+                            NgramCounts.Add(ngram.Key, ngram.Value)
+                        End If
 
+                    Next
+                Next
+
+                Return iTrain.GetHighFreq(NgramCounts, Freq_threshold)
+            End Function
+            Public Shared Function FindFrequentTokenNgrams(Tokens As List(Of String), N As Integer, ByRef Freq_threshold As Integer) As List(Of String)
+                Dim NgramCounts As Dictionary(Of String, Integer) = iTrain.GetNgramCounts(Tokens, N)
+
+                Dim frequentWordNgrams As List(Of String) = iTrain.GetHighFreq(NgramCounts, Freq_threshold)
+
+                Return frequentWordNgrams
+            End Function
+        End Class
         Public Class RemoveToken
 
             Public Function ExtractEncapsulated(ByRef Userinput As String) As String
@@ -755,6 +747,12 @@ Namespace BPE_Tokenizer
 
                 Return Txt
             End Function
+            Public Shared AlphaBet() As String = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
+    "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+    "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
+            Public Shared Number() As String = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+"30", "40", "50", "60", "70", "80", "90", "00", "000", "0000", "00000", "000000", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+"nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "Billion"}
 
             Public Shared Function RemoveStopWords(ByRef txt As String, ByRef StopWrds As List(Of String)) As String
                 For Each item In StopWrds
@@ -776,12 +774,6 @@ Namespace BPE_Tokenizer
             End Function
 
             Public Shared Function RemoveTokenType(ByRef UserStr As String, ByRef nType As TokenType) As String
-                Dim AlphaBet() As String = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N",
-    "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
-    "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
-                Dim Number() As String = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-"30", "40", "50", "60", "70", "80", "90", "00", "000", "0000", "00000", "000000", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
-"nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "Billion"}
 
                 Select Case nType
                     Case TokenType.GramaticalPunctuation
@@ -843,9 +835,53 @@ Namespace BPE_Tokenizer
                 End Select
                 Return UserStr
             End Function
+            Public Shared Function GetTokenType(ByRef CharStr As String) As TokenType
+                For Each item In PunctuationMarkers.SeperatorPunctuation
+                    If CharStr = item Then Return TokenType.SeperatorPunctuation
+                Next
+                For Each item In PunctuationMarkers.GramaticalPunctuation
+                    If CharStr = item Then Return TokenType.GramaticalPunctuation
+                Next
+                For Each item In PunctuationMarkers.EncapuslationPunctuationStart
+                    If CharStr = item Then Return TokenType.EncapuslationPunctuationStart
+                Next
+                For Each item In PunctuationMarkers.EncapuslationPunctuationEnd
+                    If CharStr = item Then Return TokenType.EncapuslationPunctuationEnd
+                Next
+                For Each item In PunctuationMarkers.MoneyPunctuation
+                    If CharStr = item Then Return TokenType.MoneyPunctuation
+                Next
+                For Each item In PunctuationMarkers.MathPunctuation
+                    If CharStr = item Then Return TokenType.MathPunctuation
+                Next
+                For Each item In PunctuationMarkers.CodePunctuation
+                    If CharStr = item Then Return TokenType.CodePunctuation
+                Next
+                For Each item In AlphaBet
+                    If CharStr = item Then Return TokenType.AlphaBet
+                Next
+                For Each item In Number
+                    If CharStr = item Then Return TokenType.Number
+                Next
+                Return TokenType.Ignore
+            End Function
 
+            Public Shared Function GetValidTokens(ByRef InputStr As String) As String
+                Dim EndStr As Integer = InputStr.Length
+                Dim CharStr As String = ""
+                For i = 0 To EndStr - 1
+                    If GetTokenType(InputStr(i)) <> TokenType.Ignore Then
+                        CharStr = AddSuffix(CharStr, InputStr(i))
+                    Else
+
+                    End If
+                Next
+                Return CharStr
+            End Function
+            Private Shared Function AddSuffix(ByRef Str As String, ByVal Suffix As String) As String
+                Return Str & Suffix
+            End Function
         End Class
-
         Public Class GetContext
 
             Public Shared Function GetContext(ByRef corpus As List(Of List(Of String)), ByRef WindowSize As Integer) As List(Of String)
@@ -881,8 +917,298 @@ Namespace BPE_Tokenizer
             End Function
 
         End Class
+        Public Class ReservedWords
+            Public Shared Function IdentifyReservedWords(ByRef Input As String) As String
+                Dim reservedWords As List(Of String) = GetReservedWords()
 
+                For Each word In reservedWords
+                    Input = Input.Replace(word, UCase(word))
+                Next
+
+                Return Input
+            End Function
+            Private Shared Function GetReservedWords() As List(Of String)
+                Dim reservedWords As New List(Of String)()
+
+                ' Add VB.NET reserved words to the list
+                reservedWords.Add("AddHandler")
+                reservedWords.Add("AddressOf")
+                reservedWords.Add("Alias")
+                reservedWords.Add("And")
+                reservedWords.Add("AndAlso")
+                reservedWords.Add("As")
+                reservedWords.Add("Boolean")
+                reservedWords.Add("ByRef")
+                reservedWords.Add("Byte")
+                reservedWords.Add("ByVal")
+                reservedWords.Add("Call")
+                reservedWords.Add("Case")
+                reservedWords.Add("Catch")
+                reservedWords.Add("CBool")
+                reservedWords.Add("CByte")
+                reservedWords.Add("CChar")
+                reservedWords.Add("CDate")
+                reservedWords.Add("CDbl")
+                reservedWords.Add("CDec")
+                reservedWords.Add("Char")
+                reservedWords.Add("CInt")
+                reservedWords.Add("Class")
+                reservedWords.Add("CLng")
+                reservedWords.Add("CObj")
+                reservedWords.Add("Continue")
+                reservedWords.Add("CSByte")
+                reservedWords.Add("CShort")
+                reservedWords.Add("CSng")
+                reservedWords.Add("CStr")
+                reservedWords.Add("CType")
+                reservedWords.Add("CUInt")
+                reservedWords.Add("CULng")
+                reservedWords.Add("CUShort")
+                reservedWords.Add("Date")
+                reservedWords.Add("Decimal")
+                reservedWords.Add("Declare")
+                reservedWords.Add("Default")
+                reservedWords.Add("Delegate")
+                reservedWords.Add("Dim")
+                reservedWords.Add("DirectCast")
+                reservedWords.Add("Do")
+                reservedWords.Add("Double")
+                reservedWords.Add("Each")
+                reservedWords.Add("Else")
+                reservedWords.Add("ElseIf")
+                reservedWords.Add("End")
+                reservedWords.Add("EndIf")
+                reservedWords.Add("Enum")
+                reservedWords.Add("Erase")
+                reservedWords.Add("Error")
+                reservedWords.Add("Event")
+                reservedWords.Add("Exit")
+                reservedWords.Add("False")
+                reservedWords.Add("Finally")
+                reservedWords.Add("For")
+                reservedWords.Add("Friend")
+                reservedWords.Add("Function")
+                reservedWords.Add("Get")
+                reservedWords.Add("GetType")
+                reservedWords.Add("GetXMLNamespace")
+                reservedWords.Add("Global")
+                reservedWords.Add("GoSub")
+                reservedWords.Add("GoTo")
+                reservedWords.Add("Handles")
+                reservedWords.Add("If")
+                reservedWords.Add("Implements")
+                reservedWords.Add("Imports")
+                reservedWords.Add("In")
+                reservedWords.Add("Inherits")
+                reservedWords.Add("Integer")
+                reservedWords.Add("Interface")
+                reservedWords.Add("Is")
+                reservedWords.Add("IsNot")
+                reservedWords.Add("Let")
+                reservedWords.Add("Lib")
+                reservedWords.Add("Like")
+                reservedWords.Add("Long")
+                reservedWords.Add("Loop")
+                reservedWords.Add("Me")
+                reservedWords.Add("Mod")
+                reservedWords.Add("Module")
+                reservedWords.Add("MustInherit")
+                reservedWords.Add("MustOverride")
+                reservedWords.Add("MyBase")
+                reservedWords.Add("MyClass")
+                reservedWords.Add("Namespace")
+                reservedWords.Add("Narrowing")
+                reservedWords.Add("New")
+                reservedWords.Add("Next")
+                reservedWords.Add("Not")
+                reservedWords.Add("Nothing")
+                reservedWords.Add("NotInheritable")
+                reservedWords.Add("NotOverridable")
+                reservedWords.Add("Object")
+                reservedWords.Add("Of")
+                reservedWords.Add("On")
+                reservedWords.Add("Operator")
+                reservedWords.Add("Option")
+                reservedWords.Add("Optional")
+                reservedWords.Add("Or")
+                reservedWords.Add("OrElse")
+                reservedWords.Add("Overloads")
+                reservedWords.Add("Overridable")
+                reservedWords.Add("Overrides")
+                reservedWords.Add("ParamArray")
+                reservedWords.Add("Partial")
+                reservedWords.Add("Private")
+                reservedWords.Add("Property")
+                reservedWords.Add("Protected")
+                reservedWords.Add("Public")
+                reservedWords.Add("RaiseEvent")
+                reservedWords.Add("ReadOnly")
+                reservedWords.Add("ReDim")
+                reservedWords.Add("RemoveHandler")
+                reservedWords.Add("Resume")
+                reservedWords.Add("Return")
+                reservedWords.Add("SByte")
+                reservedWords.Add("Select")
+                reservedWords.Add("Set")
+                reservedWords.Add("Shadows")
+                reservedWords.Add("Shared")
+                reservedWords.Add("Short")
+                reservedWords.Add("Single")
+                reservedWords.Add("Static")
+                reservedWords.Add("Step")
+                reservedWords.Add("Stop")
+                reservedWords.Add("String")
+                reservedWords.Add("Structure")
+                reservedWords.Add("Sub")
+                reservedWords.Add("SyncLock")
+                reservedWords.Add("Then")
+                reservedWords.Add("Throw")
+                reservedWords.Add("To")
+                reservedWords.Add("True")
+                reservedWords.Add("Try")
+                reservedWords.Add("TryCast")
+                reservedWords.Add("TypeOf")
+                reservedWords.Add("UInteger")
+                reservedWords.Add("ULong")
+                reservedWords.Add("UShort")
+                reservedWords.Add("Using")
+                reservedWords.Add("Variant")
+                reservedWords.Add("Wend")
+                reservedWords.Add("When")
+                reservedWords.Add("While")
+                reservedWords.Add("Widening")
+                reservedWords.Add("With")
+                reservedWords.Add("WithEvents")
+                reservedWords.Add("WriteOnly")
+                reservedWords.Add("Xor")
+
+                Return reservedWords
+            End Function
+
+            ''' <summary>
+            ''' Checks if string is a reserved VBscipt Keyword
+            ''' </summary>
+            ''' <param name="keyword"></param>
+            ''' <returns></returns>
+            Public Shared Function IsReservedWord(ByVal keyword As String) As Boolean
+                Dim IsReserved = False
+                Select Case LCase(keyword)
+                    Case "and" : IsReserved = True
+                    Case "as" : IsReserved = True
+                    Case "boolean" : IsReserved = True
+                    Case "byref" : IsReserved = True
+                    Case "byte" : IsReserved = True
+                    Case "byval" : IsReserved = True
+                    Case "call" : IsReserved = True
+                    Case "case" : IsReserved = True
+                    Case "class" : IsReserved = True
+                    Case "const" : IsReserved = True
+                    Case "currency" : IsReserved = True
+                    Case "debug" : IsReserved = True
+                    Case "dim" : IsReserved = True
+                    Case "do" : IsReserved = True
+                    Case "double" : IsReserved = True
+                    Case "each" : IsReserved = True
+                    Case "else" : IsReserved = True
+                    Case "elseif" : IsReserved = True
+                    Case "empty" : IsReserved = True
+                    Case "end" : IsReserved = True
+                    Case "endif" : IsReserved = True
+                    Case "enum" : IsReserved = True
+                    Case "eqv" : IsReserved = True
+                    Case "event" : IsReserved = True
+                    Case "exit" : IsReserved = True
+                    Case "false" : IsReserved = True
+                    Case "for" : IsReserved = True
+                    Case "function" : IsReserved = True
+                    Case "get" : IsReserved = True
+                    Case "goto" : IsReserved = True
+                    Case "if" : IsReserved = True
+                    Case "imp" : IsReserved = True
+                    Case "implements" : IsReserved = True
+                    Case "in" : IsReserved = True
+                    Case "integer" : IsReserved = True
+                    Case "is" : IsReserved = True
+                    Case "let" : IsReserved = True
+                    Case "like" : IsReserved = True
+                    Case "long" : IsReserved = True
+                    Case "loop" : IsReserved = True
+                    Case "lset" : IsReserved = True
+                    Case "me" : IsReserved = True
+                    Case "mod" : IsReserved = True
+                    Case "new" : IsReserved = True
+                    Case "next" : IsReserved = True
+                    Case "not" : IsReserved = True
+                    Case "nothing" : IsReserved = True
+                    Case "null" : IsReserved = True
+                    Case "on" : IsReserved = True
+                    Case "option" : IsReserved = True
+                    Case "optional" : IsReserved = True
+                    Case "or" : IsReserved = True
+                    Case "paramarray" : IsReserved = True
+                    Case "preserve" : IsReserved = True
+                    Case "private" : IsReserved = True
+                    Case "public" : IsReserved = True
+                    Case "raiseevent" : IsReserved = True
+                    Case "redim" : IsReserved = True
+                    Case "rem" : IsReserved = True
+                    Case "resume" : IsReserved = True
+                    Case "rset" : IsReserved = True
+                    Case "select" : IsReserved = True
+                    Case "set" : IsReserved = True
+                    Case "shared" : IsReserved = True
+                    Case "single" : IsReserved = True
+                    Case "static" : IsReserved = True
+                    Case "stop" : IsReserved = True
+                    Case "sub" : IsReserved = True
+                    Case "then" : IsReserved = True
+                    Case "to" : IsReserved = True
+                    Case "true" : IsReserved = True
+                    Case "type" : IsReserved = True
+                    Case "typeof" : IsReserved = True
+                    Case "until" : IsReserved = True
+                    Case "variant" : IsReserved = True
+                    Case "wend" : IsReserved = True
+                    Case "while" : IsReserved = True
+                    Case "with" : IsReserved = True
+                    Case "xor" : IsReserved = True
+                End Select
+                Return IsReserved
+            End Function
+
+
+        End Class
         Public Class CalcSubWords
+            Public Shared Function CalculateCosineSimilarity(sentence1 As String, sentence2 As String) As Double
+                ' Calculate the cosine similarity between two sentences
+                Dim words1 As String() = sentence1.Split(" "c)
+                Dim words2 As String() = sentence2.Split(" "c)
+
+                Dim intersection As Integer = words1.Intersect(words2).Count()
+                Dim similarity As Double = intersection / Math.Sqrt(words1.Length * words2.Length)
+                Return similarity
+            End Function
+            Public Shared Function DiscoverCollocations(ByVal words As String(), ByVal threshold As Double) As List(Of Tuple(Of String, String))
+                Dim collocations As New List(Of Tuple(Of String, String))
+
+                ' Generate all possible combinations of word pairs
+                Dim wordPairs As IEnumerable(Of Tuple(Of String, String)) = GenerateWordPairs(words)
+
+                For Each wordPair In wordPairs
+                    Dim word1 As String = wordPair.Item1
+                    Dim word2 As String = wordPair.Item2
+
+                    ' Calculate cosine similarity between word vectors
+                    Dim similarity As Double = CalculateCosineSimilarity(word1, word2)
+
+                    ' Check if similarity exceeds the threshold
+                    If similarity >= threshold Then
+                        collocations.Add(Tuple.Create(word1, word2))
+                    End If
+                Next
+
+                Return collocations.Distinct.ToList
+            End Function
 
             Public Shared Function TokenizeToSubTokens(word As String, ByRef Vocabulary As List(Of String)) As List(Of String)
                 Dim tokens As New List(Of String)
