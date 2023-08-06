@@ -74,8 +74,8 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="iTokenizer.vb" />
-    <Compile Include="BPE.vb" />
+    <Compile Include="Extensions.vb" />
+    <Compile Include="Tokenizers.vb" />
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>

@@ -619,5 +619,532 @@
             Return String.Join(" ", tokens)
         End Function
     End Class
+    Public Class Tokenizer
+        Public Property Vocabulary As Dictionary(Of String, Integer)
+        Public ReadOnly Property PairFrequencies As Dictionary(Of String, Integer) = ComputePairFrequencies()
+        Public ReadOnly Property maxSubwordLen As Integer = Me.Vocabulary.Max(Function(token) token.Key.Length)
+        Private ReadOnly unkToken As String = "<Unk>"
+        ''' <summary>
+        ''' Defines max entries in vocabulary before Pruning Rare Words
+        ''' </summary>
+        ''' <returns></returns>
+        Public Property VocabularyPruneValue As Integer = 100000
+
+        Public Sub New()
+            Vocabulary = New Dictionary(Of String, Integer)
+
+        End Sub
+        Public Function GetVocabulary() As List(Of String)
+            Return Vocabulary.Keys.ToList()
+        End Function
+
+        Public Sub New(vocabulary As Dictionary(Of String, Integer), Optional vocabularyPruneValue As Integer = 1000000)
+            Me.Vocabulary = vocabulary
+            Me.VocabularyPruneValue = vocabularyPruneValue
+        End Sub
+
+        Private Function TokenizeWordPiece(text As String) As List(Of String)
+            Dim tokens As New List(Of String)
+            Dim pos As Integer = 0
+
+            While pos < text.Length
+                Dim foundSubword As Boolean = False
+                Dim subword As String = ""
+
+                For subwordLen As Integer = Math.Min(Me.maxSubwordLen, text.Length - pos) To 1 Step -1
+                    subword = text.Substring(pos, subwordLen)
+
+                    If Vocabulary.Keys.Contains(subword) Then
+                        tokens.Add(subword)
+                        pos += subwordLen
+                        foundSubword = True
+                        Exit For
+                    End If
+                Next
+
+                ' If no subword from the vocabulary matches, split into WordPiece tokens
+                If Not foundSubword Then
+                    Dim wordPieceTokens As List(Of String) = TokenizeBitWord(subword)
+                    tokens.AddRange(wordPieceTokens)
+                    UpdateVocabulary(subword)
+                    pos += subword.Length
+                End If
+            End While
+
+            Return tokens
+        End Function
+        Private Function TokenizeBitWord(subword As String) As List(Of String)
+            Dim wordPieceTokens As New List(Of String)
+            Dim startIdx As Integer = 0
+
+            While startIdx < subword.Length
+                Dim endIdx As Integer = subword.Length
+                Dim foundSubword As Boolean = False
+
+                While startIdx < endIdx
+                    Dim candidate As String = subword.Substring(startIdx, endIdx - startIdx)
+                    Dim isLast = endIdx = subword.Length
+
+                    If Vocabulary.Keys.Contains(candidate) OrElse isLast Then
+                        wordPieceTokens.Add(candidate)
+                        startIdx = endIdx
+                        foundSubword = True
+                        Exit While
+                    End If
+
+                    endIdx -= 1
+                End While
+
+                ' If no subword from the vocabulary matches, break the subword into smaller parts
+                If Not foundSubword Then
+                    wordPieceTokens.Add("<unk>")
+                    startIdx += 1
+                End If
+            End While
+
+            Return wordPieceTokens
+        End Function
+        Private Shared Function TokenizeBitWord(subword As String, ByRef Vocab As Dictionary(Of String, Integer)) As List(Of String)
+
+            Dim wordPieceTokens As New List(Of String)
+            Dim startIdx As Integer = 0
+
+            While startIdx < subword.Length
+                Dim endIdx As Integer = subword.Length
+                Dim foundSubword As Boolean = False
+
+                While startIdx < endIdx
+                    Dim candidate As String = subword.Substring(startIdx, endIdx - startIdx)
+                    Dim isLast = endIdx = subword.Length
+
+                    If Vocab.Keys.Contains(candidate) OrElse isLast Then
+                        wordPieceTokens.Add(candidate)
+                        startIdx = endIdx
+                        foundSubword = True
+                        Exit While
+                    End If
+
+                    endIdx -= 1
+                End While
+
+                ' If no subword from the vocabulary matches, break the subword into smaller parts
+                If Not foundSubword Then
+                    wordPieceTokens.Add("<unk>")
+                    startIdx += 1
+                End If
+            End While
+
+            Return wordPieceTokens
+        End Function
+
+        Private Function TokenizeBPE(ByVal text As String) As List(Of String)
+            Dim tokens As New List(Of String)
+
+            While text.Length > 0
+                Dim foundToken As Boolean = False
+
+                ' Find the longest token in the vocabulary that matches the start of the text
+                For Each subword In Vocabulary.OrderByDescending(Function(x) x.Key.Length)
+                    If text.StartsWith(subword.Key) Then
+                        tokens.Add(subword.Key)
+                        text = text.Substring(subword.Key.Length)
+                        foundToken = True
+                        Exit For
+                    End If
+                Next
+
+                ' If no token from the vocabulary matches, break the text into subwords
+                If Not foundToken Then
+                    Dim subwordFound As Boolean = False
+                    Dim subword As String = ""
+                    ' Divide the text into subwords starting from the longest possible length
+                    For length = Math.Min(text.Length, 20) To 1 Step -1
+                        subword = text.Substring(0, length)
+
+                        ' Check if the subword is in the vocabulary
+                        If Vocabulary.Keys(subword) Then
+                            tokens.Add(subword)
+                            text = text.Substring(length)
+                            subwordFound = True
+                            Exit For
+                        End If
+                    Next
+
+                    ' If no subword from the vocabulary matches,
+                    'Learn On the fly, But 
+                    If Not subwordFound Then
+                        '    Throw New Exception("Unrecognized subword in the text.")
+                        tokens.AddRange(TokenizeBitWord(unkToken & subword))
+                        UpdateVocabulary(subword)
+
+                    End If
+                End If
+            End While
+
+            Return tokens
+        End Function
+        Private Class NgramTokenizer
+
+            Public Shared Function TokenizetoCharacter(Document As String, n As Integer) As List(Of String)
+                TokenizetoCharacter = New List(Of String)
+                Document = Document.ToLower()
+                Document = Document.SpacePunctuation
+
+                ' Generate character n-grams
+                For i As Integer = 0 To Document.Length - n
+                    Dim ngram As String = Document.Substring(i, n)
+                    TokenizetoCharacter.Add(ngram)
+                Next
+
+            End Function
+
+            Public Shared Function TokenizetoWord(ByRef text As String, n As Integer) As List(Of String)
+                TokenizetoWord = New List(Of String)
+                text = text.ToLower()
+                text = text.SpacePunctuation
+
+                ' Split the clean text into individual words
+                Dim words() As String = text.Split({" ", ".", ",", ";", ":", "!", "?"}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate n-grams from the words
+                For i As Integer = 0 To words.Length - n
+                    Dim ngram As String = String.Join(" ", words.Skip(i).Take(n))
+                    TokenizetoWord.Add(ngram)
+                Next
+
+            End Function
+
+            Public Shared Function TokenizetoParagraph(text As String, n As Integer) As List(Of String)
+                TokenizetoParagraph = New List(Of String)
+
+                ' Split the text into paragraphs
+                Dim paragraphs() As String = text.Split({Environment.NewLine & Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate paragraph n-grams
+                For i As Integer = 0 To paragraphs.Length - n
+                    Dim ngram As String = String.Join(Environment.NewLine & Environment.NewLine, paragraphs.Skip(i).Take(n))
+                    TokenizetoParagraph.Add(ngram)
+                Next
+
+                Return TokenizetoParagraph
+            End Function
+
+            Public Shared Function TokenizetoSentence(text As String, n As Integer) As List(Of String)
+                Dim tokens As New List(Of String)
+
+                ' Split the text into Clauses
+                Dim Clauses() As String = text.Split({".", ",", ";", ":", "!", "?"}, StringSplitOptions.RemoveEmptyEntries)
+
+                ' Generate sentence n-grams
+                For i As Integer = 0 To Clauses.Length - n
+                    Dim ngram As String = String.Join(" ", Clauses.Skip(i).Take(n))
+                    tokens.Add(ngram)
+                Next
+
+                Return tokens
+            End Function
+
+        End Class
+        Private Class BasicTokenizer
+
+            Public Shared Function TokenizeToCharacter(Document As String) As List(Of String)
+                TokenizeToCharacter = New List(Of String)
+                Document = Document.ToLower()
+                For i = 0 To Document.Length - 1
+                    TokenizeToCharacter.Add(Document(i))
+                Next
+            End Function
+
+            Public Shared Function TokenizeToWord(Document As String) As List(Of String)
+                Document = Document.ToLower()
+                Document = Document.SpacePunctuation
+                Return Document.Split({" ", ".", ",", ";", ":", "!", "?"}, StringSplitOptions.RemoveEmptyEntries).ToList
+            End Function
+
+            Public Shared Function TokenizeToSentence(Document As String) As List(Of String)
+                Document = Document.ToLower()
+                Document = Document.SpacePunctuation
+                Return Split(Document, ".").ToList
+                Return Document.Split({".", ",", ";", ":", "!", "?"}, StringSplitOptions.RemoveEmptyEntries).ToList
+            End Function
+
+            Public Shared Function TokenizeToParagraph(Document As String) As List(Of String)
+                Document = Document.ToLower()
+                Return Split(Document, vbNewLine).ToList
+            End Function
+
+        End Class
+        Public Sub Add_Vocabulary(initialVocabulary As List(Of String))
+
+            For Each word In initialVocabulary
+
+                UpdateVocabulary(word)
+
+            Next
+
+        End Sub
+        Public Sub Initialize_Vocabulary(initialVocabulary As List(Of String), n As Integer)
+
+            For Each word In initialVocabulary
+                For i As Integer = 0 To word.Length - n
+                    UpdateVocabulary(word.Substring(i, n))
+                Next
+            Next
+
+        End Sub
+        Private Function ComputePairFrequencies() As Dictionary(Of String, Integer)
+            Dim pairFrequencies As Dictionary(Of String, Integer) = New Dictionary(Of String, Integer)
+
+            For Each token As String In Vocabulary.Keys
+                Dim tokenChars As List(Of Char) = token.ToList()
+
+                For i As Integer = 0 To tokenChars.Count - 2
+                    Dim pair As String = tokenChars(i) & tokenChars(i + 1)
+
+                    If Not pairFrequencies.ContainsKey(pair) Then
+                        pairFrequencies.Add(pair, Vocabulary(token))
+                    Else
+                        Dim value = pairFrequencies(pair)
+                        value += Vocabulary(token)
+                        pairFrequencies.Remove(pair)
+                        pairFrequencies.Add(pair, value)
+
+
+                    End If
+                Next
+            Next
+
+            Return pairFrequencies
+        End Function
+
+        Private Sub UpdateFrequencyDictionary(mergedSubword As String)
+            PairFrequencies.Remove("")
+            For i As Integer = 0 To mergedSubword.Length - 2
+                Dim bigram As String = mergedSubword.Substring(i, 2)
+                If PairFrequencies.ContainsKey(bigram) Then
+                    PairFrequencies(bigram) += 1
+                Else
+                    PairFrequencies.Add(bigram, 1)
+                End If
+            Next
+        End Sub
+        Public Sub UpdateVocabulary(ByRef Term As String)
+            If Vocabulary.Keys.Contains(Term) = True Then
+                Dim value = Vocabulary(Term)
+                value += 1
+                Vocabulary.Remove(Term)
+                Vocabulary.Add(Term, value)
+            Else
+                Vocabulary.Add(Term, 1)
+            End If
+
+        End Sub
+        Public Shared Function UpdateCorpusWithMergedToken(ByRef corpus As List(Of String), pair As String) As List(Of String)
+            ' Update the text corpus with the merged token for the next iteration.
+            Return corpus.ConvertAll(Function(text) text.Replace(pair, pair.Replace(" ", "_")))
+        End Function
+        Public Sub Prune(pruningThreshold As Integer)
+
+            Dim minimumVocabularySize As Integer = VocabularyPruneValue
+            If Vocabulary.Count > minimumVocabularySize Then
+                PruneVocabulary(pruningThreshold)
+            End If
+
+        End Sub
+        Private Sub PruneVocabulary(threshold As Integer)
+            ' Create a list to store tokens to be removed.
+            Dim tokensToRemove As New List(Of String)
+
+            ' Iterate through the vocabulary and identify tokens to prune.
+            For Each token In Vocabulary
+                Dim tokenId As Integer = token.Value
+                Dim tokenFrequency As Integer = Vocabulary(token.Key)
+
+                ' Prune the token if it has frequency below the threshold (1) and is not recent (has a lower ID).
+                If tokenFrequency <= threshold AndAlso tokenId < Vocabulary.Count - 1 Then
+                    tokensToRemove.Add(token.Key)
+                End If
+            Next
+
+            ' Remove the identified tokens from the vocabulary.
+            For Each tokenToRemove In tokensToRemove
+                Vocabulary.Remove(tokenToRemove)
+            Next
+
+            Console.WriteLine("Pruning completed. Vocabulary size after pruning: " & Vocabulary.Count)
+            Console.ReadLine()
+        End Sub
+        Public Sub Train(text As String, Epochs As Integer)
+            ' Tokenize the text into individual characters
+
+            Dim Bits As List(Of String) = TokenizeBitWord(text)
+            For Each bit As String In Bits
+                UpdateVocabulary(bit)
+            Next
+
+
+            ' Train BPE using merging strategy
+            Dim numMerges As Integer = Epochs ' Define the number of merges, you can adjust it as needed
+            For mergeIndex As Integer = 0 To numMerges - 1
+                MergeMostFrequentBigram()
+                MergeMostFrequentPair(FindMostFrequentPair.Key)
+            Next
+
+            Prune(1)
+        End Sub
+        Public Function Tokenize(singleDocument As String, isWordPiece As Boolean) As List(Of String)
+            ' Tokenize the document using the current vocabulary.
+            Dim tokens As List(Of String) = If(isWordPiece, Tokenize(singleDocument, True), Tokenize(singleDocument, False))
+            If tokens.Contains(unkToken) = True Then
+                tokens = TrainAndTokenize(singleDocument, isWordPiece, 1)
+            End If
+            Return tokens
+        End Function
+        Private Function TrainAndTokenize(singleDocument As String, isWordPiece As Boolean, Epochs As Integer) As List(Of String)
+            ' Tokenize the document using the current vocabulary.
+            Dim tokens As List(Of String) = If(isWordPiece, Tokenize(singleDocument, True), Tokenize(singleDocument, False))
+
+            ' Train the tokenizer using the same document.
+            If isWordPiece Then
+                TrainWordPiece(singleDocument, Epochs)
+            Else
+                TrainBPE(singleDocument, Epochs)
+            End If
+
+            ' Re-tokenize the document with the updated vocabulary.
+            Return If(isWordPiece, TokenizeWordPiece(singleDocument), TokenizeBPE(singleDocument))
+        End Function
+        Public Sub Train(text As String, isWordPiece As Boolean, Epochs As Integer)
+            If isWordPiece Then
+                TrainWordPiece(text, Epochs)
+            Else
+                TrainBPE(text, Epochs)
+            End If
+            Prune(1)
+        End Sub
+        Private Sub TrainWordPiece(text As String, Epochs As Integer)
+            ' Tokenize the text into individual characters
+            Dim Bits As List(Of String) = TokenizeWordPiece(text)
+            For Each bit As String In Bits
+                UpdateVocabulary(bit)
+            Next
+
+            ' Train WordPiece using merging strategy
+            Dim numMerges As Integer = Epochs ' Define the number of merges, you can adjust it as needed
+            For mergeIndex As Integer = 0 To numMerges - 1
+                MergeMostFrequentBigram()
+                MergeMostFrequentPair(FindMostFrequentPair.Key)
+            Next
+        End Sub
+        Private Sub TrainBPE(text As String, Epochs As Integer)
+            ' Tokenize the text into individual characters
+            Dim Bits As List(Of String) = TokenizeBPE(text)
+            For Each bit As String In Bits
+                UpdateVocabulary(bit)
+            Next
+
+            ' Train BPE using merging strategy
+            Dim numMerges As Integer = Epochs ' Define the number of merges, you can adjust it as needed
+            For mergeIndex As Integer = 0 To numMerges - 1
+                MergeMostFrequentBigram()
+                MergeMostFrequentPair(FindMostFrequentPair.Key)
+            Next
+        End Sub
+        Private Function FindMostFrequentPair() As KeyValuePair(Of String, Integer)
+            ' Find the most frequent character pair from the frequency counts.
+            Return PairFrequencies.Aggregate(Function(x, y) If(x.Value > y.Value, x, y))
+        End Function
+        Private Sub MergeMostFrequentPair(pair As String)
+            ' Merge the most frequent character pair into a new subword unit.
+            Dim mergedToken As String = pair.Replace(" ", "_")
+            UpdateVocabulary(mergedToken)
+
+        End Sub
+        Private Sub MergeMostFrequentBigram()
+            Dim mostFrequentBigram As String = GetMostFrequentBigram()
+            If mostFrequentBigram IsNot Nothing Then
+                Dim mergedSubword As String = mostFrequentBigram.Replace("", " ")
+
+                UpdateVocabulary(mergedSubword)
+
+            End If
+        End Sub
+        Private Function GetMostFrequentBigram() As String
+            Dim mostFrequentBigram As String = Nothing
+            Dim maxFrequency As Integer = 0
+
+            For Each bigram In PairFrequencies.Keys
+                If PairFrequencies(bigram) > maxFrequency Then
+                    mostFrequentBigram = bigram
+                    maxFrequency = PairFrequencies(bigram)
+                End If
+            Next
+
+            Return mostFrequentBigram
+        End Function
+
+        Public Shared Function FindFrequentCharacterBigrams(Vocab As List(Of String), ByRef Freq_Threshold As Integer) As List(Of String)
+            Dim bigramCounts As New Dictionary(Of String, Integer)
+
+            For Each word In Vocab
+                Dim characters As Char() = word.ToCharArray()
+
+                For i As Integer = 0 To characters.Length - 2
+                    Dim bigram As String = characters(i) & characters(i + 1)
+
+                    If bigramCounts.ContainsKey(bigram) Then
+                        bigramCounts(bigram) += 1
+                    Else
+                        bigramCounts.Add(bigram, 1)
+                    End If
+                Next
+            Next
+
+            Dim frequentCharacterBigrams As New List(Of String)
+
+            For Each pair In bigramCounts
+                If pair.Value > Freq_Threshold Then ' Adjust the threshold as needed
+                    frequentCharacterBigrams.Add(pair.Key)
+                End If
+            Next
+
+            Return frequentCharacterBigrams
+        End Function
+        Public Shared Function GetHighFreq(ByRef Vocabulary As Dictionary(Of String, Integer), ByRef Threshold As Integer) As List(Of String)
+            Dim HighFreq As New List(Of String)
+            For Each item In Vocabulary
+                If item.Value > Threshold Then
+                    HighFreq.Add(item.Key)
+                End If
+            Next
+            Return HighFreq
+        End Function
+        Public Shared Function TokenizeToCharacter(text As String) As List(Of String)
+            Return BasicTokenizer.TokenizeToCharacter(text)
+        End Function
+        Public Shared Function TokenizeToWord(text As String) As List(Of String)
+            Return BasicTokenizer.TokenizeToWord(text)
+        End Function
+        Public Shared Function TokenizeToSentence(text As String) As List(Of String)
+            Return BasicTokenizer.TokenizeToSentence(text)
+        End Function
+        Public Shared Function TokenizeToSentenceGram(text As String, ByRef n As Integer) As List(Of String)
+            Return NgramTokenizer.TokenizetoSentence(text, n)
+        End Function
+        Public Shared Function TokenizeToWordGram(text As String, ByRef n As Integer) As List(Of String)
+            Return NgramTokenizer.TokenizetoWord(text, n)
+        End Function
+        Public Shared Function TokenizeToNGram(text As String, ByRef n As Integer) As List(Of String)
+            Return NgramTokenizer.TokenizetoCharacter(text, n)
+        End Function
+        Public Shared Function TokenizeToBitWord(text As String, ByRef Vocab As Dictionary(Of String, Integer)) As List(Of String)
+            Dim Words = Tokenizer.TokenizeToWord(text)
+            Dim Tokens As New List(Of String)
+            For Each item In Words
+                Tokens.AddRange(TokenizeBitWord(item, Vocab))
+            Next
+            Return Tokens
+        End Function
+    End Class
 End Namespace
 
