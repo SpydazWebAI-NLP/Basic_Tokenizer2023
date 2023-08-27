@@ -39,7 +39,7 @@ Namespace My.Resources
         Friend ReadOnly Property ResourceManager() As Global.System.Resources.ResourceManager
             Get
                 If Object.ReferenceEquals(resourceMan, Nothing) Then
-                    Dim temp As Global.System.Resources.ResourceManager = New Global.System.Resources.ResourceManager("SpydazWebAI.Tokenizer.Resources", GetType(Resources).Assembly)
+                    Dim temp As Global.System.Resources.ResourceManager = New Global.System.Resources.ResourceManager("SpydazWebAI.Resources", GetType(Resources).Assembly)
                     resourceMan = temp
                 End If
                 Return resourceMan
@@ -58,6 +58,353 @@ Namespace My.Resources
             Set
                 resourceCulture = value
             End Set
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''[unused1]
+        '''[unused2]
+        '''[unused3]
+        '''[unused4]
+        '''[unused5]
+        '''[unused6]
+        '''[unused7]
+        '''[unused8]
+        '''[unused9]
+        '''[unused10]
+        '''[unused11]
+        '''[unused12]
+        '''[unused13]
+        '''[unused14]
+        '''[unused15]
+        '''[unused16]
+        '''[unused17]
+        '''[unused18]
+        '''[unused19]
+        '''[unused20]
+        '''[unused21]
+        '''[unused22]
+        '''[unused23]
+        '''[unused24]
+        '''[unused25]
+        '''[unused26]
+        '''[unused27]
+        '''[unused28]
+        '''[unused29]
+        '''[unused30]
+        '''[unused31]
+        '''[unused32]
+        '''[unused33]
+        '''[unused34]
+        '''[unused35]
+        '''[unused36]
+        '''[unused37]
+        '''[unused38]
+        '''[unused39]
+        '''[unused40]
+        '''[unused41]
+        '''[unused42]
+        '''[unused43]
+        '''[unused44]
+        '''[unused45]
+        '''[unused46]
+        '''[unused47 [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_cased() As String
+            Get
+                Return ResourceManager.GetString("base_cased", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''unused0
+        '''unused1
+        '''unused2
+        '''unused3
+        '''unused4
+        '''unused5
+        '''unused6
+        '''unused7
+        '''unused8
+        '''unused9
+        '''unused10
+        '''unused11
+        '''unused12
+        '''unused13
+        '''unused14
+        '''unused15
+        '''unused16
+        '''unused17
+        '''unused18
+        '''unused19
+        '''unused20
+        '''unused21
+        '''unused22
+        '''unused23
+        '''unused24
+        '''unused25
+        '''unused26
+        '''unused27
+        '''unused28
+        '''unused29
+        '''unused30
+        '''unused31
+        '''unused32
+        '''unused33
+        '''unused34
+        '''unused35
+        '''unused36
+        '''unused37
+        '''unused38
+        '''unused39
+        '''unused40
+        '''unused41
+        '''unused42
+        '''unused43
+        '''unused44
+        '''unused45
+        '''unused46
+        '''unused47
+        '''unused48
+        '''unused49
+        '''unused50
+        '''unused51
+        '''unused52
+        '''unused53
+        '''unused54
+        '''unused55
+        '''unused56
+        '''unu [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_cased_german() As String
+            Get
+                Return ResourceManager.GetString("base_cased_german", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''[unused1]
+        '''[unused2]
+        '''[unused3]
+        '''[unused4]
+        '''[unused5]
+        '''[unused6]
+        '''[unused7]
+        '''[unused8]
+        '''[unused9]
+        '''[unused10]
+        '''[unused11]
+        '''[unused12]
+        '''[unused13]
+        '''[unused14]
+        '''[unused15]
+        '''[unused16]
+        '''[unused17]
+        '''[unused18]
+        '''[unused19]
+        '''[unused20]
+        '''[unused21]
+        '''[unused22]
+        '''[unused23]
+        '''[unused24]
+        '''[unused25]
+        '''[unused26]
+        '''[unused27]
+        '''[unused28]
+        '''[unused29]
+        '''[unused30]
+        '''[unused31]
+        '''[unused32]
+        '''[unused33]
+        '''[unused34]
+        '''[unused35]
+        '''[unused36]
+        '''[unused37]
+        '''[unused38]
+        '''[unused39]
+        '''[unused40]
+        '''[unused41]
+        '''[unused42]
+        '''[unused43]
+        '''[unused44]
+        '''[unused45]
+        '''[unused46]
+        '''[unused47 [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_cased_large() As String
+            Get
+                Return ResourceManager.GetString("base_cased_large", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''[unused1]
+        '''[unused2]
+        '''[unused3]
+        '''[unused4]
+        '''[unused5]
+        '''[unused6]
+        '''[unused7]
+        '''[unused8]
+        '''[unused9]
+        '''[unused10]
+        '''[unused11]
+        '''[unused12]
+        '''[unused13]
+        '''[unused14]
+        '''[unused15]
+        '''[unused16]
+        '''[unused17]
+        '''[unused18]
+        '''[unused19]
+        '''[unused20]
+        '''[unused21]
+        '''[unused22]
+        '''[unused23]
+        '''[unused24]
+        '''[unused25]
+        '''[unused26]
+        '''[unused27]
+        '''[unused28]
+        '''[unused29]
+        '''[unused30]
+        '''[unused31]
+        '''[unused32]
+        '''[unused33]
+        '''[unused34]
+        '''[unused35]
+        '''[unused36]
+        '''[unused37]
+        '''[unused38]
+        '''[unused39]
+        '''[unused40]
+        '''[unused41]
+        '''[unused42]
+        '''[unused43]
+        '''[unused44]
+        '''[unused45]
+        '''[unused46]
+        '''[unused47 [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_cased_multilingual() As String
+            Get
+                Return ResourceManager.GetString("base_cased_multilingual", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''[unused0]
+        '''[unused1]
+        '''[unused2]
+        '''[unused3]
+        '''[unused4]
+        '''[unused5]
+        '''[unused6]
+        '''[unused7]
+        '''[unused8]
+        '''[unused9]
+        '''[unused10]
+        '''[unused11]
+        '''[unused12]
+        '''[unused13]
+        '''[unused14]
+        '''[unused15]
+        '''[unused16]
+        '''[unused17]
+        '''[unused18]
+        '''[unused19]
+        '''[unused20]
+        '''[unused21]
+        '''[unused22]
+        '''[unused23]
+        '''[unused24]
+        '''[unused25]
+        '''[unused26]
+        '''[unused27]
+        '''[unused28]
+        '''[unused29]
+        '''[unused30]
+        '''[unused31]
+        '''[unused32]
+        '''[unused33]
+        '''[unused34]
+        '''[unused35]
+        '''[unused36]
+        '''[unused37]
+        '''[unused38]
+        '''[unused39]
+        '''[unused40]
+        '''[unused41]
+        '''[unused42]
+        '''[unused43]
+        '''[unused44]
+        '''[unused45]
+        '''[unused46] [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_uncased() As String
+            Get
+                Return ResourceManager.GetString("base_uncased", resourceCulture)
+            End Get
+        End Property
+        
+        '''<summary>
+        '''  Looks up a localized string similar to [PAD]
+        '''[unused0]
+        '''[unused1]
+        '''[unused2]
+        '''[unused3]
+        '''[unused4]
+        '''[unused5]
+        '''[unused6]
+        '''[unused7]
+        '''[unused8]
+        '''[unused9]
+        '''[unused10]
+        '''[unused11]
+        '''[unused12]
+        '''[unused13]
+        '''[unused14]
+        '''[unused15]
+        '''[unused16]
+        '''[unused17]
+        '''[unused18]
+        '''[unused19]
+        '''[unused20]
+        '''[unused21]
+        '''[unused22]
+        '''[unused23]
+        '''[unused24]
+        '''[unused25]
+        '''[unused26]
+        '''[unused27]
+        '''[unused28]
+        '''[unused29]
+        '''[unused30]
+        '''[unused31]
+        '''[unused32]
+        '''[unused33]
+        '''[unused34]
+        '''[unused35]
+        '''[unused36]
+        '''[unused37]
+        '''[unused38]
+        '''[unused39]
+        '''[unused40]
+        '''[unused41]
+        '''[unused42]
+        '''[unused43]
+        '''[unused44]
+        '''[unused45]
+        '''[unused46] [rest of string was truncated]&quot;;.
+        '''</summary>
+        Friend ReadOnly Property base_uncased_large() As String
+            Get
+                Return ResourceManager.GetString("base_uncased_large", resourceCulture)
+            End Get
         End Property
     End Module
 End Namespace

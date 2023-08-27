@@ -8,7 +8,7 @@
     <OutputType>Library</OutputType>
     <StartupObject>
     </StartupObject>
-    <RootNamespace>SpydazWebAI.Tokenizer</RootNamespace>
+    <RootNamespace>SpydazWebAI</RootNamespace>
     <AssemblyName>SpydazWebAI.Tokenizer</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Windows</MyType>
@@ -74,6 +74,12 @@
     <Import Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ModelControl.Designer.vb">
+      <DependentUpon>ModelControl.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ModelControl.vb">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -90,9 +96,12 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <Compile Include="Tokenizers.vb" />
+    <Compile Include="Tokenizer.vb" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ModelControl.resx">
+      <DependentUpon>ModelControl.vb</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="My Project\Resources.resx">
       <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.vb</LastGenOutput>
@@ -112,6 +121,26 @@
     </None>
     <None Include="App.config" />
     <None Include="ReadMe.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Vocabularies\base_cased.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocabularies\base_cased_german.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocabularies\base_cased_large.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocabularies\base_cased_multilingual.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocabularies\base_uncased.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Vocabularies\base_uncased_large.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>
