@@ -124,7 +124,6 @@ Namespace TokenizerModels
 
             Public MustOverride Sub Train(ByRef Corpus As List(Of String))
         End Class
-
         ''' <summary>
         ''' a basic tokenizer ; with quick tokenizer functionality
         ''' </summary>
@@ -996,7 +995,6 @@ Namespace TokenizerModels
             Next
 
         End Sub
-
         Public Sub Prune(pruningThreshold As Integer)
             Dim Pruner As New VocabularyPruner(MaxVocabSize, _vocabularyDict, pruningThreshold)
 
@@ -1019,13 +1017,11 @@ Namespace TokenizerModels
             Next
             Return Tokens
         End Function
-
         Public Overrides Sub Train(ByRef Corpus As List(Of String))
             For Each item In Corpus
                 Train(item)
             Next
         End Sub
-
         Public Overloads Sub Train(text As String)
             ' Tokenize the text into individual characters
 
@@ -1043,7 +1039,6 @@ Namespace TokenizerModels
 
             Prune(1)
         End Sub
-
         Public Sub UpdateFrequencyDictionary(mergedSubword As String)
             PairFrequencies.Remove("")
             For i As Integer = 0 To mergedSubword.Length - 2
@@ -1055,7 +1050,6 @@ Namespace TokenizerModels
                 End If
             Next
         End Sub
-
         Private Function ComputePairFrequencies() As Dictionary(Of String, Integer)
             Dim pairFrequencies As Dictionary(Of String, Integer) = New Dictionary(Of String, Integer)
 
@@ -1106,7 +1100,6 @@ Namespace TokenizerModels
 
             End If
         End Sub
-
         Private Sub MergeMostFrequentPair(pair As String)
             ' Merge the most frequent character pair into a new subword unit.
             Dim mergedToken As String = pair.Replace(" ", "##")
@@ -1202,7 +1195,6 @@ Namespace TokenizerModels
 
             Return tokens
         End Function
-
         Private Function TokenizeWordPiece(text As String) As List(Of String)
             Dim tokens As New List(Of String)
             Dim pos As Integer = 0
@@ -1320,6 +1312,113 @@ Namespace TokenizerModels
     End Class
 End Namespace
 Public Module TokenizerExtensions
+    Public Function LoadVocabularyList() As List(Of String)
+        Dim openFileDialog As New OpenFileDialog()
+        Dim Vocabulary As New List(Of String)
+        openFileDialog.Filter = "txt Files|*.txt"
+        openFileDialog.Title = "Select a Vocabulary list"
+
+        If openFileDialog.ShowDialog() = DialogResult.OK Then
+            Dim selectedFilePath As String = openFileDialog.FileName
+
+
+            Vocabulary = LoadListFromFile(selectedFilePath)
+
+        End If
+        Return Vocabulary
+    End Function
+    Public Function LoadCorpusFromDirectory(directoryPath As String) As List(Of String)
+        Dim textList As New List(Of String)
+
+        Try
+            If Directory.Exists(directoryPath) Then
+                Dim textFiles As String() = Directory.GetFiles(directoryPath, "*.txt")
+
+                For Each filePath As String In textFiles
+                    Dim text As String = File.ReadAllText(filePath)
+
+                    textList.Add(text)
+                Next
+            Else
+                Console.WriteLine("Directory not found: " & directoryPath)
+            End If
+        Catch ex As Exception
+            Console.WriteLine("An error occurred: " & ex.Message)
+        End Try
+
+        Return textList
+    End Function
+
+    Public Function LoadTextFilesFromDirectory(directoryPath As String) As List(Of String)
+        Dim textList As New List(Of String)
+
+        Try
+            If Directory.Exists(directoryPath) Then
+                Dim textFiles As String() = Directory.GetFiles(directoryPath, "*.txt")
+
+                For Each filePath As String In textFiles
+                    Dim text As String = File.ReadAllText(filePath)
+                    textList.Add(text)
+
+                Next
+            Else
+                MessageBox.Show("Directory not found: " & directoryPath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End If
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+        Return textList
+    End Function
+
+    Public Function LoadTextFromFile(filePath As String) As String
+        Dim text As String = String.Empty
+
+        Try
+            If File.Exists(filePath) Then
+                text = File.ReadAllText(filePath)
+            Else
+                MessageBox.Show("File not found: " & filePath, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End If
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+
+        Return text
+    End Function
+
+    Public Sub SaveTextsToFiles(textStrings As List(Of String), fileNames As List(Of String), directoryPath As String)
+        If textStrings.Count <> fileNames.Count Then
+            MessageBox.Show("Number of text strings and filenames should match.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Return
+        End If
+
+        Try
+            If Not Directory.Exists(directoryPath) Then
+                Directory.CreateDirectory(directoryPath)
+            End If
+
+            For i As Integer = 0 To textStrings.Count - 1
+                Dim filePath As String = Path.Combine(directoryPath, fileNames(i) & ".txt")
+                File.WriteAllText(filePath, textStrings(i))
+            Next
+
+            MessageBox.Show("Texts saved to files in directory: " & directoryPath, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+    Public Sub SaveTextToFile(text As String, filePath As String)
+        Try
+            File.WriteAllText(filePath, text)
+            MessageBox.Show("Text saved to file: " & filePath, "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " & ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
+    End Sub
+
+
     <Serializable>
     Public Class Token
         Private iStopWords As List(Of String)
@@ -1390,9 +1489,10 @@ Public Module TokenizerExtensions
         _Hybrid
         _TokenEncoder
         _Legacy
-        _Bert
+        _BertCased
+        _BertUnCased
+        _BertMultilingual
     End Enum
-
     Public Function CalculateWordPieceFrequency(ByVal subword As String, ByVal mergedWord As String) As Integer
         Dim occurrences As Integer = 0
         Dim index As Integer = -1
@@ -1414,7 +1514,6 @@ Public Module TokenizerExtensions
 
         Return occurrences
     End Function
-
     <Runtime.CompilerServices.Extension()>
     Public Function ExtractStringBetween(ByVal value As String, ByVal strStart As String, ByVal strEnd As String) As String
         If Not String.IsNullOrEmpty(value) Then
@@ -1425,7 +1524,7 @@ Public Module TokenizerExtensions
             Return value
         End If
     End Function
-
+    <Runtime.CompilerServices.Extension()>
     Public Function FindFrequentCharacterBigrams(Vocab As List(Of String), ByRef Freq_Threshold As Integer) As List(Of String)
         Dim bigramCounts As New Dictionary(Of String, Integer)
 
@@ -1469,7 +1568,6 @@ Public Module TokenizerExtensions
     Public Function GetVocabularyLst(ByRef Vocabulary As Dictionary(Of String, Integer)) As List(Of String)
         Return Vocabulary.Keys.ToList()
     End Function
-
     Public Function InlineAssignHelper(Of T)(ByRef target As T, value As T) As T
         target = value
         Return value
@@ -1524,7 +1622,7 @@ Public Module TokenizerExtensions
 
         Return Model
     End Function
-
+    <Runtime.CompilerServices.Extension()>
     Public Sub SaveListToFile(strings As List(Of String), filePath As String)
         Try
             File.WriteAllLines(filePath, strings)
